@@ -333,12 +333,13 @@ static void _parse_import_module(struct parser *par)
             if ((p.tokenizer.text = read_file(lookup_path))) break;
         }
 
+        if (has_file_been_imported(lookup_path)) continue;
+        add_imported_file(lookup_path);
         if (!p.tokenizer.text) error_loc(loc, "could not import module '%s'\n", path);
         p.tokenizer.text_size = strlen(p.tokenizer.text);
         tokenize(&p.tokenizer);
         parse(&p);
-        for (int i = 0; i < p.ast.size; ++i)
-            _append_expr(&par->ast, p.ast.body[i]);
+        for (int i = 0; i < p.ast.size; ++i) _append_expr(&par->ast, p.ast.body[i]);
     } while (TOK(par).kind == TK_COMMA);
 }
 

@@ -1,4 +1,4 @@
-import std.io, std.array
+import std.array, std.io
 
 greet(name) = writeln('Hello, ', name, '!')
 
