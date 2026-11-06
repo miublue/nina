@@ -1,4 +1,5 @@
 extern write(val)
+extern length(val)
 
 writeln(str) = do
     write(str)
@@ -39,6 +40,12 @@ main() = do
         if i == 3 continue end
         if i == 7 break end
         writeln(i)
+    end
+
+    i = 0
+    while i < length(array)
+        writeln(array[i])
+        i = i + 1
     end
 
     0

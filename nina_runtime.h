@@ -73,6 +73,14 @@ __nina_value write(__nina_value val) {
     return __NINA_FROM_INTEGER(0);
 }
 
+__nina_value length(__nina_value val) {
+    switch(__NINA_TYPE(val)){
+    case __NINA_TYPE_STRING: return __NINA_FROM_INTEGER(strlen(__NINA_TO_STRING(val)));
+    case __NINA_TYPE_ARRAY: return __NINA_FROM_INTEGER(__NINA_TO_ARRAY(val)->len);
+    default: return __NINA_FROM_INTEGER(0);
+    }
+}
+
 __nina_value __nina_make_array(uint32_t cap, ...) {
     __nina_value *arr = malloc(sizeof(*arr) * cap);
     va_list ap;
