@@ -8,11 +8,12 @@
 enum {
     EXPR_LITERAL,
     EXPR_CALL_FUNC,
-    EXPR_DEFINE_FUNC,
     EXPR_SET_VAR,
     EXPR_GET_VAR,
     EXPR_BINARY,
-    EXPR_BLOCK,
+    EXPR_BLOCK,       /* every expression under block is actually a statement */
+    EXPR_DEFINE_FUNC,
+    EXPR_IFELSE,
 };
 
 struct func_arg {
@@ -47,6 +48,10 @@ struct expr_binary {
     struct expr *left, *right;
 };
 
+struct expr_ifelse {
+    struct expr *cond, *body, *elze;
+};
+
 struct expr {
     struct location loc;
     int kind;
@@ -57,6 +62,7 @@ struct expr {
         struct expr_block block;
         struct expr_set_var set_var;
         struct expr_binary binary;
+        struct expr_ifelse ifelse;
     };
 };
 

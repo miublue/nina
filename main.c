@@ -43,13 +43,11 @@ int main(int argc, char **argv)
 
     struct parser par = {0};
     par.tokenizer.loc = (struct location) { .file = input_file, .line = 1 };
-    if (!(par.tokenizer.text = read_file(input_file))) {
-        fprintf(stderr, "error: failed to read file '%s'\n", input_file);
-        return 1;
-    }
+    if (!(par.tokenizer.text = read_file(input_file))) ERROR("failed to read file '%s'\n", input_file);
 
     par.tokenizer.text_size = strlen(par.tokenizer.text);
     tokenize(&par.tokenizer);
+
     parse(&par);
 
     struct analyzer anal = {0};
@@ -65,6 +63,5 @@ int main(int argc, char **argv)
     snprintf(cmd, sizeof(cmd), "${CC:-tcc} %s -o %s -lc -lgc", gen_file, output_file);
     system(cmd);
     if (!keep_temp) unlink(gen_file);
-
     return 0;
 }

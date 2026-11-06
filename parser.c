@@ -89,14 +89,42 @@ static struct expr *_parse_literal(struct parser *par)
     return expr;
 }
 
-static struct expr *_parse_block(struct parser *par)
+enum { BLOCK_BLOCK = 0, BLOCK_IF = 1, BLOCK_ELSE = 2 };
+static struct expr *_parse_block(struct parser *par, int block_type)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_BLOCK);
-    _expect_kind(par, TK_DO, 1);
+    if (block_type == BLOCK_BLOCK) _expect_kind(par, TK_DO, 1);
     while (BOUND(par) && TOK(par).kind != TK_END) {
+        if (TOK(par).kind == TK_EOF) error_loc(expr->loc, "missing 'end' for 'do' block\n");
+        if (TOK(par).kind == TK_ELSE && block_type == BLOCK_IF) return expr;
         _append_expr(&expr->block, _parse_statement(par));
     }
     _expect_kind(par, TK_END, 1);
+    if (TOK(par).kind == TK_ELSE) error_loc(TOK(par).loc, "unexpected 'else'\n");
+    return expr;
+}
+
+static struct expr *_parse_ifelse(struct parser *par)
+{
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_IFELSE);
+    _expect_kind(par, TK_IF, 1);
+    expr->ifelse.cond = _parse_expression(par);
+    expr->ifelse.body = _parse_block(par, BLOCK_IF);
+    if (TOK(par).kind == TK_ELSE) {
+        INC(par, 1);
+        if (TOK(par).kind == TK_IF) expr->ifelse.elze = _parse_ifelse(par);
+        else expr->ifelse.elze = _parse_block(par, BLOCK_ELSE);
+    }
+
+
+    /* const int is_block = TOK(par).kind == TK_DO; */
+    /* expr->ifelse.body = is_block? _parse_block(par, 1) : _parse_statement(par); */
+    /* if (BOUND(par) && TOK(par).kind == TK_ELSE) { */
+    /*     INC(par, 1); */
+    /*     if (TOK(par).kind == TK_IF) expr->ifelse.elze = _parse_ifelse(par); */
+    /*     else if (is_block) INC(par, -1), expr->ifelse.elze = _parse_block(par, 1); */
+    /*     else expr->ifelse.elze = _parse_statement(par); */
+    /* } */
     return expr;
 }
 
@@ -229,8 +257,12 @@ static struct expr *_parse_expression(struct parser *par)
 static struct expr *_parse_statement(struct parser *par)
 {
     struct expr *expr = NULL;
-    if (TOK(par).kind == TK_DO) expr = _parse_block(par);
-    else expr = _parse_expression(par);
+    if (TOK(par).kind == TK_EOF) return expr;
+    switch (TOK(par).kind) {
+    case TK_DO: expr = _parse_block(par, BLOCK_BLOCK); break;
+    case TK_IF: expr = _parse_ifelse(par); break;
+    default: expr = _parse_expression(par); break;
+    }
     return expr;
 }
 

@@ -6,7 +6,7 @@
 #include "lexer.h"
 
 static const char *KEYWORDS[] = {
-    "extern", "do", "end",
+    "extern", "if", "else", "do", "end",
 };
 
 static const char *OPERATORS[] = {
@@ -81,6 +81,7 @@ static struct token _next_token(struct tokenizer *tok)
         do ++size, INC(tok, 1); while (CUR(tok) != match && (is_closed = (BOUND(tok) && CUR(tok) != '\n')));
         if (!is_closed) error_loc(tk.loc, "unclosed string\n");
         ++size, INC(tok, 1);
+        if (match == '\'') tk.data[0] = tk.data[size-1] = '\"';
         goto ret;
     }
     if (isdigit(CUR(tok))) {
@@ -88,11 +89,11 @@ static struct token _next_token(struct tokenizer *tok)
         do ++size, INC(tok, 1); while (isdigit(CUR(tok)));
         goto ret;
     }
-    int idx = _is_operator(2, tk.data);
-    if (idx == -1) idx = _is_operator(1, tk.data);
+    int idx = _is_operator(2, &CUR(tok));
+    if (idx == -1) idx = _is_operator(1, &CUR(tok));
     if (idx != -1) {
-        tk.kind = TK_COMMA+idx, size = idx >= TK_EQEQ? 2 : 1;
-        INC(tok, size);
+        tk.kind = TK_COMMA+idx;
+        INC(tok, size = (tk.kind >= TK_EQEQ? 2 : 1));
         goto ret;
     }
     while (!isspace(CUR(tok)) && !strchr("\"\'#", CUR(tok)) && _is_operator(1, &CUR(tok)) == -1)

@@ -112,6 +112,11 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         _analyze_expr(anal, expr->binary.left);
         _analyze_expr(anal, expr->binary.right);
         break;
+    case EXPR_IFELSE:
+        _analyze_expr(anal, expr->ifelse.cond);
+        _analyze_expr(anal, expr->ifelse.body);
+        if (expr->ifelse.elze) _analyze_expr(anal, expr->ifelse.elze);
+        break;
     default: error_loc(expr->loc, "unexpected expression\n");
     }
 }

@@ -13,6 +13,8 @@
 #define realloc(X,Y) (GC_realloc((X), (Y)))
 #define free(X) (GC_free(X))
 
+#define __NINA_TRUE 0x3
+#define __NINA_FALSE 0x1
 enum { __NINA_TYPE_POINTER = 0x0, __NINA_TYPE_INTEGER = 0x1, __NINA_TYPE_FLOAT = 0x2, __NINA_TYPE_STRING = 0x4, __NINA_TYPE_ARRAY = 0x6 };
 
 // ..000 = pointer
@@ -70,6 +72,37 @@ __nina_value write(__nina_value val) {
     return __NINA_FROM_INTEGER(0);
 }
 
+__nina_value __nina_truthy(__nina_value val) {
+    switch (__NINA_TYPE(val)) {
+    case __NINA_TYPE_INTEGER: return __NINA_FROM_INTEGER(__NINA_TO_INTEGER(val) != 0);
+    case __NINA_TYPE_FLOAT:   return __NINA_FROM_INTEGER(__NINA_TO_FLOAT(val) != 0.0);
+    case __NINA_TYPE_STRING:  return __NINA_FROM_INTEGER(strlen(__NINA_TO_STRING(val)) != 0);
+    case __NINA_TYPE_POINTER: return __NINA_FROM_INTEGER(__NINA_TO_POINTER(val) != NULL);
+    case __NINA_TYPE_ARRAY:   return __NINA_FROM_INTEGER(__NINA_TO_ARRAY(val)->len != 0);
+    default: return __NINA_FROM_INTEGER(0);
+    }
+}
+
+__nina_value __nina_equals(__nina_value a, __nina_value b) {
+    const int t = __NINA_TYPE(a);
+    const __nina_value f = { .i = __NINA_FALSE };
+    if (t != __NINA_TYPE(b)) return f;
+    switch (t) {
+    case __NINA_TYPE_INTEGER: return __NINA_FROM_INTEGER(a.i == b.i);
+    case __NINA_TYPE_FLOAT:   return __NINA_FROM_INTEGER(a.i == b.i);
+    case __NINA_TYPE_POINTER: return __NINA_FROM_INTEGER(a.i == b.i);
+    case __NINA_TYPE_STRING:  return __NINA_FROM_INTEGER(!strcmp(__NINA_TO_STRING(a), __NINA_TO_STRING(b)));
+    case __NINA_TYPE_ARRAY: {
+        const __nina_array *aa = __NINA_TO_ARRAY(a), *ab = __NINA_TO_ARRAY(b);
+        if (aa->len != ab->len) return f;
+        for (uint32_t i = 0; i < aa->len; ++i)
+            if (__nina_equals(aa->buf[i], ab->buf[i]).i == __NINA_FALSE) return f;
+        return __NINA_FROM_INTEGER(1);
+    }
+    default: return f;
+    }
+}
+
 enum {
     __NINA_BINOP_ADD, __NINA_BINOP_SUB, __NINA_BINOP_MUL, __NINA_BINOP_DIV, __NINA_BINOP_MOD,
     __NINA_BINOP_LT, __NINA_BINOP_GT, __NINA_BINOP_LE, __NINA_BINOP_GE, __NINA_BINOP_EQ, __NINA_BINOP_NE,
@@ -82,6 +115,13 @@ enum {
 #define __NINA_BIN(OP) (is_float) ? __NINA_FROM_FLOAT(__NINA_FOP(a) OP __NINA_FOP(b)) \
                                   : __NINA_FROM_INTEGER(__NINA_IOP(a) OP __NINA_IOP(b))
 __nina_value __nina_binary(int op, __nina_value a, __nina_value b) {
+    assert(op >= __NINA_BINOP_ADD && op <= __NINA_BINOP_BOR);
+    switch(op){
+    case __NINA_BINOP_BAND: return __NINA_FROM_INTEGER(__nina_truthy(a).i == __NINA_TRUE && __nina_truthy(b).i == __NINA_TRUE);
+    case __NINA_BINOP_BOR:  return __NINA_FROM_INTEGER(__nina_truthy(a).i == __NINA_TRUE || __nina_truthy(b).i == __NINA_TRUE);
+    case __NINA_BINOP_EQ:   return __nina_equals(a, b);
+    case __NINA_BINOP_NE:   return __NINA_FROM_INTEGER(__nina_equals(a, b).i == __NINA_FALSE);
+    }
     const int atype = __NINA_TYPE(a), btype = __NINA_TYPE(b);
     assert(atype == __NINA_TYPE_INTEGER || atype == __NINA_TYPE_FLOAT);
     assert(btype == __NINA_TYPE_INTEGER || btype == __NINA_TYPE_FLOAT);
@@ -93,8 +133,6 @@ __nina_value __nina_binary(int op, __nina_value a, __nina_value b) {
     case __NINA_BINOP_SHL:  assert(!is_float); return __NINA_FROM_INTEGER(__NINA_TO_INTEGER(a) << __NINA_TO_INTEGER(b));
     case __NINA_BINOP_SHR:  assert(!is_float); return __NINA_FROM_INTEGER(__NINA_TO_INTEGER(a) >> __NINA_TO_INTEGER(b));
     case __NINA_BINOP_MOD:  assert(!is_float); return __NINA_FROM_INTEGER(__NINA_TO_INTEGER(a)  % __NINA_TO_INTEGER(b));
-    case __NINA_BINOP_BAND: return __NINA_BIN(&&);
-    case __NINA_BINOP_BOR:  return __NINA_BIN(||);
     case __NINA_BINOP_ADD:  return __NINA_BIN(+);
     case __NINA_BINOP_SUB:  return __NINA_BIN(-);
     case __NINA_BINOP_MUL:  return __NINA_BIN(*);
@@ -103,11 +141,8 @@ __nina_value __nina_binary(int op, __nina_value a, __nina_value b) {
     case __NINA_BINOP_GT:   return __NINA_BIN(>);
     case __NINA_BINOP_LE:   return __NINA_BIN(<=);
     case __NINA_BINOP_GE:   return __NINA_BIN(>=);
-    case __NINA_BINOP_EQ:   return __NINA_BIN(==);
-    case __NINA_BINOP_NE:   return __NINA_BIN(!=);
     }
-    assert(op >= __NINA_BINOP_ADD && op <= __NINA_BINOP_BOR);
-    return (__nina_value){ .i = 1 };
+    return __NINA_FROM_INTEGER(0);
 }
 #undef __NINA_IOP
 #undef __NINA_FOP

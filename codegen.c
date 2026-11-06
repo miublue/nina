@@ -72,7 +72,6 @@ static void _generate_literal(struct codegen *gen, struct token literal)
     (void)gen;
     const char *type_str[] = { "__NINA_FROM_INTEGER(%s)", "__NINA_FROM_STRING(strdup(%s))", };
     const int is_str = literal.kind == TK_STRING;
-    if (is_str && literal.data[0] == '\'') literal.data[0] = literal.data[strlen(literal.data)-1] = '\"';
     EMIT(type_str[is_str], literal.data);
 }
 
@@ -95,6 +94,18 @@ static void _generate_binary(struct codegen *gen, struct expr_binary binary)
     EMIT(")");
 }
 
+static void _generate_ifelse(struct codegen *gen, struct expr_ifelse ifelse)
+{
+    EMIT("if (__nina_truthy(");
+    _generate_expr(gen, ifelse.cond);
+    EMIT(").i == __NINA_TRUE)");
+    _generate_expr(gen, ifelse.body);
+    if (ifelse.elze) {
+        EMIT("else ");
+        _generate_expr(gen, ifelse.elze);
+    }
+}
+
 static void _generate_expr(struct codegen *gen, struct expr *expr)
 {
     switch (expr->kind) {
@@ -114,7 +125,8 @@ static void _generate_expr(struct codegen *gen, struct expr *expr)
     case EXPR_BLOCK:
         EMIT("{\n");
         for (int i = 0; i < expr->block.size; ++i) {
-            EMIT("__nina_result = ");
+            if (expr->block.body[i]->kind < EXPR_BLOCK)
+                EMIT("__nina_result = ");
             _generate_expr(gen, expr->block.body[i]);
             EMIT(";\n");
         }
@@ -122,6 +134,9 @@ static void _generate_expr(struct codegen *gen, struct expr *expr)
         break;
     case EXPR_BINARY:
         _generate_binary(gen, expr->binary);
+        break;
+    case EXPR_IFELSE:
+        _generate_ifelse(gen, expr->ifelse);
         break;
     default: ERROR("_generate_expr: unexpected statement, must be a bug in the analyzer\n");
     }
