@@ -10,7 +10,6 @@ static FILE *out;
 
 #define EMIT(...) fprintf(out, __VA_ARGS__)
 
-
 static const char *binary_operators[] = {
     [TK_ADD]  = "__NINA_BINOP_ADD",
     [TK_SUB]  = "__NINA_BINOP_SUB",
@@ -61,7 +60,8 @@ static void _generate_func(struct codegen *gen, struct expr_define_func func)
     for (int i = 0; i < func_data->num_vars; ++i) {
         struct func_arg var = func_data->vars[i];
         if (_is_variable_arg(func_data, var.name)) continue;
-        EMIT("__nina_value %s = __NINA_FROM_INTEGER(0);\n", var.name);
+        if (!strcmp(var.name, "_va_list")) EMIT("__nina_value _va_list = _;\n");
+        else EMIT("__nina_value %s = __NINA_FROM_INTEGER(0);\n", var.name);
     }
     _generate_expr(gen, func.body);
     EMIT(";\n__nina_return:\nreturn __nina_result;\n}\n");
@@ -77,11 +77,17 @@ static void _generate_literal(struct codegen *gen, struct token literal)
 
 static void _generate_call_func(struct codegen *gen, struct expr_call_func func)
 {
+    struct function *func_data = get_function(gen->analyzer, func.name);
+    if (!func_data) ERROR("_generate_call_func: function '%s' is not defined. must be a bug in the analyzer\n", func.name);
     EMIT("%s(", func.name);
     for (int i = 0; i < func.num_args; ++i) {
         if (i > 0) EMIT(", ");
+        if (func_data->is_variadic && i < func_data->arity && !strcmp(func_data->args[i].name, "_")) {
+            EMIT("__nina_make_array(%d, ", func.num_args-i);
+        }
         _generate_expr(gen, func.args[i]);
     }
+    if (func_data->is_variadic) EMIT(")");
     EMIT(")");
 }
 

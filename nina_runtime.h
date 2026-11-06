@@ -51,7 +51,7 @@ __nina_value __NINA_FROM_ARRAY(uint32_t l, __nina_value *p) {
     return v;
 }
 
-__nina_value write(__nina_value val) {
+__nina_value __nina_write_value(__nina_value val) {
     switch(__NINA_TYPE(val)){
     case __NINA_TYPE_INTEGER: printf("%ld", __NINA_TO_INTEGER(val)); break;
     case __NINA_TYPE_FLOAT:   printf("%g",  __NINA_TO_FLOAT(val));   break;
@@ -64,12 +64,19 @@ __nina_value write(__nina_value val) {
             if (i > 0) printf(", ");
             const char is_str = __NINA_TYPE(a->buf[i]) == __NINA_TYPE_STRING;
             if (is_str) printf("\"");
-            write(a->buf[i]);
+            __nina_write_value(a->buf[i]);
             if (is_str) printf("\"");
         }
         printf("]");
     } break;
     }
+    return __NINA_FROM_INTEGER(0);
+}
+
+__nina_value write(__nina_value va_args) {
+    assert(__NINA_TYPE(va_args) == __NINA_TYPE_ARRAY);
+    __nina_array *args = __NINA_TO_ARRAY(va_args);
+    for (uint32_t i = 0; i < args->len; ++i) __nina_write_value(args->buf[i]);
     return __NINA_FROM_INTEGER(0);
 }
 

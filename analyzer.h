@@ -6,7 +6,7 @@
 struct function {
     // XXX: return type and whatnot
     char *name;
-    int arity, is_extern, num_vars, max_vars;
+    int arity, is_extern, is_variadic, num_vars, max_vars;
     struct func_arg args[MAX_FUNC_ARGS];
     struct func_arg *vars;
 };

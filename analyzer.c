@@ -54,7 +54,12 @@ static void _define_function(struct analyzer *anal, struct expr *expr)
     anal->func->is_extern = expr->define_func.is_extern;
     for (int i = 0; i < anal->func->arity; ++i) {
         anal->func->args[i] = expr->define_func.args[i];
-        _append_variable(anal->func, anal->func->args[i]);
+        if (i == anal->func->arity-1 && !strcmp(expr->define_func.args[i].name, "_")) {
+            _append_variable(anal->func, (struct func_arg) { .name = strdup("_va_list") });
+            anal->func->is_variadic = 1;
+        } else {
+            _append_variable(anal->func, anal->func->args[i]);
+        }
     }
     if (expr->define_func.body && expr->define_func.body->kind == EXPR_BLOCK) {
         struct expr_block *block = &expr->define_func.body->block;
@@ -74,7 +79,8 @@ static void _analyze_call_func(struct analyzer *anal, struct expr *expr)
     // XXX: you'd also type-check all the arguments here
     struct function *func = get_function(anal, expr->call_func.name);
     if (!func) error_loc(expr->loc, "function '%s' does not exist\n", expr->call_func.name);
-    if (func->arity != expr->call_func.num_args) {
+    if ((!func->is_variadic && func->arity != expr->call_func.num_args)
+            || (func->is_variadic && func->arity > expr->call_func.num_args)) {
         error_loc(expr->loc, "function '%s' expects %d argument(s), got %d\n",
                 func->name, func->arity, expr->call_func.num_args);
     }

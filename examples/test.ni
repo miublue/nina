@@ -1,16 +1,17 @@
-extern write(val)
+extern write(_)
 extern length(val)
 
-writeln(str) = do
-    write(str)
+writeln(_) = do
+    len = length(_va_list)
+    i = 0
+    while i < len
+        write(_va_list[i])
+        i = i + 1
+    end
     write('\n')
 end
 
-greet(name) = do
-    write('Hello, ')
-    write(name)
-    writeln("!")
-end
+greet(name) = writeln('Hello, ', name, '!')
 
 main() = do
     name = "World"
@@ -29,8 +30,7 @@ main() = do
     else if (val == NICE1)
         writeln("val is 420")
     else
-        write("val is not 69 nor 420, it is actually ")
-        writeln(val)
+        writeln("val is not 69 nor 420, it is actually ", val)
     end
 
     # loop from 0 to 9, skip 3, break on 7
