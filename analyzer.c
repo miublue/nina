@@ -6,6 +6,7 @@
 #include "parser.h"
 
 static void _analyze_expr(struct analyzer *anal, struct expr *expr);
+struct func_arg *get_variable(struct function *func, char *name);
 
 static void _append_function(struct analyzer *anal, struct function *func)
 {
@@ -20,6 +21,7 @@ static void _append_variable(struct function *func, struct func_arg var)
     if (!func->max_vars) func->vars = calloc(func->max_vars = 1024, sizeof(struct func_arg));
     if (func->num_vars >= func->max_vars)
         func->vars = realloc(func->vars, sizeof(struct func_arg) * (func->max_vars *= 2));
+    if (get_variable(func, var.name)) return;
     func->vars[func->num_vars++] = var;
 }
 
