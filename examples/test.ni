@@ -15,6 +15,10 @@ main() = do
     name = "World"
     greet(name)
 
+    array = [69, 0, "string", ["foo", "bar"]]
+    writeln(array[1] = 420)
+    writeln(array)
+
     NICE0 = 3 + 33 * 2
     NICE1 = 4000 / 10 + 40-20
     val = 80085

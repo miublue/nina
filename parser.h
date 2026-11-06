@@ -10,6 +10,9 @@ enum {
     EXPR_CALL_FUNC,
     EXPR_SET_VAR,
     EXPR_GET_VAR,
+    EXPR_MAKE_ARRAY,
+    EXPR_GET_ARRAY,
+    EXPR_SET_ARRAY,
     /* XXX: unary operations */
     EXPR_BINARY,
     EXPR_BLOCK,       /* every expression under block is actually a statement */
@@ -46,6 +49,10 @@ struct expr_set_var {
     struct expr *expr;
 };
 
+struct expr_array_index {
+    struct expr *array, *index, *expr;
+};
+
 struct expr_binary {
     int op;
     struct expr *left, *right;
@@ -71,8 +78,10 @@ struct expr {
         struct expr_block block;
         struct expr_set_var set_var;
         struct expr_binary binary;
-        struct expr_ifelse ifelse;
+        struct expr_ifelse cond;
         struct expr_return ret;
+        struct expr_block make_array;
+        struct expr_array_index array_index;
     };
 };
 

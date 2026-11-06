@@ -79,8 +79,21 @@ static struct expr *_parse_call_func(struct parser *par, char *name)
     return expr;
 }
 
+static struct expr *_parse_make_array(struct parser *par)
+{
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_MAKE_ARRAY);
+    do {
+        INC(par, 1);
+        if (!BOUND(par) || TOK(par).kind == TK_RSQUARE) break;
+        _append_expr(&expr->make_array, _parse_expression(par));
+    } while (TOK(par).kind == TK_COMMA);
+    _expect_kind(par, TK_RSQUARE, 1);
+    return expr;
+}
+
 static struct expr *_parse_literal(struct parser *par)
 {
+    if (TOK(par).kind == TK_LSQUARE) return _parse_make_array(par);
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_LITERAL);
     if (TOK(par).kind != TK_NUMBER && TOK(par).kind != TK_STRING)
         error_loc(TOK(par).loc, "unexpected '%s'\n", TOK(par).data);
@@ -108,12 +121,12 @@ static struct expr *_parse_ifelse(struct parser *par)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_IFELSE);
     _expect_kind(par, TK_IF, 1);
-    expr->ifelse.cond = _parse_expression(par);
-    expr->ifelse.body = _parse_block(par, BLOCK_IF);
+    expr->cond.cond = _parse_expression(par);
+    expr->cond.body = _parse_block(par, BLOCK_IF);
     if (TOK(par).kind == TK_ELSE) {
         INC(par, 1);
-        if (TOK(par).kind == TK_IF) expr->ifelse.elze = _parse_ifelse(par);
-        else expr->ifelse.elze = _parse_block(par, BLOCK_ELSE);
+        if (TOK(par).kind == TK_IF) expr->cond.elze = _parse_ifelse(par);
+        else expr->cond.elze = _parse_block(par, BLOCK_ELSE);
     }
     return expr;
 }
@@ -122,8 +135,8 @@ static struct expr *_parse_while(struct parser *par)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_WHILE);
     _expect_kind(par, TK_WHILE, 1);
-    expr->ifelse.cond = _parse_expression(par);
-    expr->ifelse.body = _parse_block(par, BLOCK_WHILE);
+    expr->cond.cond = _parse_expression(par);
+    expr->cond.body = _parse_block(par, BLOCK_WHILE);
     return expr;
 }
 
@@ -151,12 +164,26 @@ static struct expr *_parse_variable(struct parser *par)
     return expr;
 }
 
+static struct expr *_parse_array_index(struct parser *par, struct expr *array)
+{
+    _expect_kind(par, TK_LSQUARE, 1);
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_GET_ARRAY);
+    expr->array_index.array = array;
+    expr->array_index.index = _parse_expression(par);
+    _expect_kind(par, TK_RSQUARE, 1);
+    if (TOK(par).kind == TK_EQ) {
+        INC(par, 1);
+        expr->kind = EXPR_SET_ARRAY, expr->array_index.expr = _parse_expression(par);
+    }
+    return expr;
+}
+
 static struct expr *_parse_term(struct parser *par)
 {
     struct expr *expr = NULL;
     if (TOK(par).kind == TK_EOF) return expr;
     switch (TOK(par).kind) {
-    case TK_NUMBER: case TK_STRING:
+    case TK_NUMBER: case TK_STRING: case TK_LSQUARE:
         expr = _parse_literal(par);
         break;
     case TK_IDENT:
@@ -172,6 +199,13 @@ static struct expr *_parse_term(struct parser *par)
     return expr;
 }
 
+static struct expr *_parse_factor(struct parser *par)
+{
+    struct expr *expr = _parse_term(par);
+    while (TOK(par).kind == TK_LSQUARE) expr = _parse_array_index(par, expr);
+    return expr;
+}
+
 static int _is_token_type(const int *types, const int len, int type)
 {
     for (int i = 0; i < len; ++i)
@@ -182,12 +216,12 @@ static int _is_token_type(const int *types, const int len, int type)
 static struct expr *_parse_bitshifts(struct parser *par)
 {
     const int toks[] = { TK_SHL, TK_SHR };
-    struct expr *left = _parse_term(par);
+    struct expr *left = _parse_factor(par);
     while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
         const struct token tok = TOK(par);
         INC(par, 1);
         struct expr *expr = _alloc_expr(tok.loc, EXPR_BINARY);
-        expr->binary.op = tok.kind, expr->binary.left = left, expr->binary.right = _parse_term(par);
+        expr->binary.op = tok.kind, expr->binary.left = left, expr->binary.right = _parse_factor(par);
         left = expr;
     }
     return left;

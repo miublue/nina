@@ -94,16 +94,39 @@ static void _generate_binary(struct codegen *gen, struct expr_binary binary)
     EMIT(")");
 }
 
-static void _generate_ifelse(struct codegen *gen, struct expr_ifelse ifelse, int is_while)
+static void _generate_ifelse(struct codegen *gen, struct expr_ifelse cond, int is_while)
 {
     EMIT("%s (__nina_truthy(", is_while? "while" : "if");
-    _generate_expr(gen, ifelse.cond);
+    _generate_expr(gen, cond.cond);
     EMIT(").i == __NINA_TRUE)");
-    _generate_expr(gen, ifelse.body);
-    if (ifelse.elze && !is_while) {
+    _generate_expr(gen, cond.body);
+    if (cond.elze && !is_while) {
         EMIT("else ");
-        _generate_expr(gen, ifelse.elze);
+        _generate_expr(gen, cond.elze);
     }
+}
+
+static void _generate_array_index(struct codegen *gen, struct expr_array_index array)
+{
+    EMIT("__nina_%cet_array(", array.expr? 's' : 'g');
+    _generate_expr(gen, array.array);
+    EMIT(", ");
+    _generate_expr(gen, array.index);
+    if (array.expr) {
+        EMIT(", ");
+        _generate_expr(gen, array.expr);
+    }
+    EMIT(")");
+}
+
+static void _generate_make_array(struct codegen *gen, struct expr_block array)
+{
+    EMIT("__nina_make_array(%d", array.size);
+    for (int i = 0; i < array.size; ++i) {
+        EMIT(", ");
+        _generate_expr(gen, array.body[i]);
+    }
+    EMIT(")");
 }
 
 static void _generate_return(struct codegen *gen, struct expr_return ret)
@@ -133,6 +156,12 @@ static void _generate_expr(struct codegen *gen, struct expr *expr)
     case EXPR_GET_VAR:
         EMIT("(%s)", expr->set_var.name);
         break;
+    case EXPR_SET_ARRAY: case EXPR_GET_ARRAY:
+        _generate_array_index(gen, expr->array_index);
+        break;
+    case EXPR_MAKE_ARRAY:
+        _generate_make_array(gen, expr->make_array);
+        break;
     case EXPR_BLOCK:
         EMIT("{\n");
         for (int i = 0; i < expr->block.size; ++i) {
@@ -147,10 +176,10 @@ static void _generate_expr(struct codegen *gen, struct expr *expr)
         _generate_binary(gen, expr->binary);
         break;
     case EXPR_IFELSE:
-        _generate_ifelse(gen, expr->ifelse, 0);
+        _generate_ifelse(gen, expr->cond, 0);
         break;
     case EXPR_WHILE:
-        _generate_ifelse(gen, expr->ifelse, 1);
+        _generate_ifelse(gen, expr->cond, 1);
         break;
     case EXPR_RETURN:
         _generate_return(gen, expr->ret);

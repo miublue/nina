@@ -2,6 +2,7 @@
 #define __NINA_RUNTIME_H
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +71,37 @@ __nina_value write(__nina_value val) {
     } break;
     }
     return __NINA_FROM_INTEGER(0);
+}
+
+__nina_value __nina_make_array(uint32_t cap, ...) {
+    __nina_value *arr = malloc(sizeof(*arr) * cap);
+    va_list ap;
+    va_start(ap, cap);
+    for (uint32_t i = 0; i < cap; ++i) {
+        /* this is hacky, but it should work for compilers that don't
+         * support `va_arg` with non-scalar types (*ahem cproc*). */
+        arr[i] = (__nina_value) { .i = va_arg(ap, int64_t) };
+    }
+    va_end(ap);
+    return __NINA_FROM_ARRAY(cap, arr);
+}
+
+__nina_value __nina_set_array(__nina_value arr, __nina_value idx, __nina_value val) {
+    assert(__NINA_TYPE(arr) == __NINA_TYPE_ARRAY);
+    assert(__NINA_TYPE(idx) == __NINA_TYPE_INTEGER);
+    __nina_array *a = __NINA_TO_ARRAY(arr);
+    int64_t i = __NINA_TO_INTEGER(idx);
+    assert(i >= 0 && i < a->len);
+    return a->buf[i] = val;
+}
+
+__nina_value __nina_get_array(__nina_value arr, __nina_value idx) {
+    assert(__NINA_TYPE(arr) == __NINA_TYPE_ARRAY);
+    assert(__NINA_TYPE(idx) == __NINA_TYPE_INTEGER);
+    __nina_array *a = __NINA_TO_ARRAY(arr);
+    int64_t i = __NINA_TO_INTEGER(idx);
+    assert(i >= 0 && i < a->len);
+    return a->buf[i];
 }
 
 __nina_value __nina_truthy(__nina_value val) {

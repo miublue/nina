@@ -96,6 +96,11 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
     case EXPR_SET_VAR: case EXPR_GET_VAR:
         _analyze_set_var(anal, expr);
         break;
+    case EXPR_SET_ARRAY: case EXPR_GET_ARRAY:
+        _analyze_expr(anal, expr->array_index.array);
+        _analyze_expr(anal, expr->array_index.index);
+        if (expr->array_index.expr) _analyze_expr(anal, expr->array_index.expr);
+        break;
     case EXPR_CALL_FUNC:
         _analyze_call_func(anal, expr);
         break;
@@ -104,7 +109,7 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         if (expr->define_func.body)
             _analyze_expr(anal, expr->define_func.body);
     } break;
-    case EXPR_BLOCK:
+    case EXPR_BLOCK: case EXPR_MAKE_ARRAY:
         for (int i = 0; i < expr->block.size; ++i)
             _analyze_expr(anal, expr->block.body[i]);
         break;
@@ -113,13 +118,13 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         _analyze_expr(anal, expr->binary.right);
         break;
     case EXPR_IFELSE:
-        _analyze_expr(anal, expr->ifelse.cond);
-        _analyze_expr(anal, expr->ifelse.body);
-        if (expr->ifelse.elze) _analyze_expr(anal, expr->ifelse.elze);
+        _analyze_expr(anal, expr->cond.cond);
+        _analyze_expr(anal, expr->cond.body);
+        if (expr->cond.elze) _analyze_expr(anal, expr->cond.elze);
         break;
     case EXPR_WHILE:
-        _analyze_expr(anal, expr->ifelse.cond);
-        _analyze_expr(anal, expr->ifelse.body);
+        _analyze_expr(anal, expr->cond.cond);
+        _analyze_expr(anal, expr->cond.body);
         break;
     case EXPR_RETURN:
         if (expr->ret.expr) _analyze_expr(anal, expr->ret.expr);
