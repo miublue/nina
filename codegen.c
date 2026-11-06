@@ -71,7 +71,9 @@ static void _generate_literal(struct codegen *gen, struct token literal)
 {
     (void)gen;
     const char *type_str[] = { "__NINA_FROM_INTEGER(%s)", "__NINA_FROM_STRING(strdup(%s))", };
-    EMIT(type_str[literal.kind == TK_STRING], literal.data);
+    const int is_str = literal.kind == TK_STRING;
+    if (is_str && literal.data[0] == '\'') literal.data[0] = literal.data[strlen(literal.data)-1] = '\"';
+    EMIT(type_str[is_str], literal.data);
 }
 
 static void _generate_call_func(struct codegen *gen, struct expr_call_func func)
