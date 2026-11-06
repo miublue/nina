@@ -42,6 +42,7 @@ int main(int argc, char **argv)
     if (!input_file) _usage(argv[0], 1);
 
     struct parser par = {0};
+    par.tokenizer.loc = (struct location) { .file = input_file, .line = 1 };
     if (!(par.tokenizer.text = read_file(input_file))) {
         fprintf(stderr, "error: failed to read file '%s'\n", input_file);
         return 1;

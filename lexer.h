@@ -1,6 +1,11 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <stdio.h>
+#include <stdlib.h>
+
+#define ERROR(...) do { fprintf(stderr, "error: "__VA_ARGS__); exit(1); } while(0)
+
 enum {
     TK_EOF, TK_NUMBER, TK_STRING, TK_IDENT,
     TK_EXTERN, TK_DO, TK_END,
@@ -9,18 +14,25 @@ enum {
     TK_EQEQ, TK_NEQ, TK_LEQ, TK_GEQ, TK_BAND, TK_BOR, TK_SHL, TK_SHR,
 };
 
+struct location {
+    unsigned int line;
+    const char *file;
+};
+
 struct token {
-    int kind;
-    char *data;
+    struct location loc;
+    char kind, *data;
 };
 
 struct tokenizer {
     int text_size, cur, num_tokens, max_tokens;
+    struct location loc;
     struct token *tokens;
     char *text;
 };
 
 void tokenize(struct tokenizer *tok);
-const char *readable_token_kind(int kind);
+const char *readable_token_kind(char kind);
+void error_loc(struct location loc, const char *fmt, ...);
 
 #endif

@@ -3,8 +3,6 @@
 
 #include "lexer.h"
 
-// XXX: actual, proper error reporting (with file location and whatnot)
-#define ERROR(...) do { fprintf(stderr, "error: "__VA_ARGS__); exit(1); } while(0)
 #define MAX_FUNC_ARGS 32
 
 enum {
@@ -50,6 +48,7 @@ struct expr_binary {
 };
 
 struct expr {
+    struct location loc;
     int kind;
     union {
         struct token literal;

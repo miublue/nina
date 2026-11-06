@@ -42,49 +42,49 @@ struct func_arg *get_variable(struct function *func, char *name)
     return NULL;
 }
 
-static void _define_function(struct analyzer *anal, struct expr_define_func def)
+static void _define_function(struct analyzer *anal, struct expr *expr)
 {
-    struct function *func, *check = get_function(anal, def.name);
-    if (check) ERROR("attempt to redefine function '%s'\n", def.name);
-    func = calloc(1, sizeof(struct function));
-    func->name = def.name, func->arity = def.num_args, func->is_extern = def.is_extern;
-    for (int i = 0; i < func->arity; ++i) {
-        func->args[i] = def.args[i];
-        _append_variable(func, func->args[i]);
+    struct function *prev = anal->func, *check = get_function(anal, expr->define_func.name);
+    if (check) error_loc(expr->loc, "attempt to redefine function '%s'\n", expr->define_func.name);
+    anal->func = calloc(1, sizeof(struct function));
+    anal->func->name = expr->define_func.name;
+    anal->func->arity = expr->define_func.num_args;
+    anal->func->is_extern = expr->define_func.is_extern;
+    for (int i = 0; i < anal->func->arity; ++i) {
+        anal->func->args[i] = expr->define_func.args[i];
+        _append_variable(anal->func, anal->func->args[i]);
     }
-    struct function *prev = anal->func;
-    anal->func = func;
-    if (def.body && def.body->kind == EXPR_BLOCK) {
-        struct expr_block *block = &def.body->block;
+    if (expr->define_func.body && expr->define_func.body->kind == EXPR_BLOCK) {
+        struct expr_block *block = &expr->define_func.body->block;
         for (int i = 0; i < block->size; ++i) {
             if (block->body[i]->kind == EXPR_SET_VAR) {
                 struct func_arg var = { .name = block->body[i]->set_var.name };
-                _append_variable(func, var);
+                _append_variable(anal->func, var);
             }
         }
     }
-    _append_function(anal, func);
+    _append_function(anal, anal->func);
     anal->func = prev;
 }
 
-static void _analyze_call_func(struct analyzer *anal, struct expr_call_func call)
+static void _analyze_call_func(struct analyzer *anal, struct expr *expr)
 {
     // XXX: you'd also type-check all the arguments here
-    struct function *func = get_function(anal, call.name);
-    if (!func) ERROR("function '%s' does not exist\n", call.name);
-    if (func->arity != call.num_args) {
-        ERROR("function '%s' expects %d argument(s), got %d\n",
-                func->name, func->arity, call.num_args);
+    struct function *func = get_function(anal, expr->call_func.name);
+    if (!func) error_loc(expr->loc, "function '%s' does not exist\n", expr->call_func.name);
+    if (func->arity != expr->call_func.num_args) {
+        error_loc(expr->loc, "function '%s' expects %d argument(s), got %d\n",
+                func->name, func->arity, expr->call_func.num_args);
     }
 
-    for (int i = 0; i < call.num_args; ++i)
-        _analyze_expr(anal, call.args[i]);
+    for (int i = 0; i < expr->call_func.num_args; ++i)
+        _analyze_expr(anal, expr->call_func.args[i]);
 }
 
 static void _analyze_set_var(struct analyzer *anal, struct expr *expr)
 {
     struct func_arg *var = get_variable(anal->func, expr->set_var.name);
-    if (!var) ERROR("variable '%s' does not exist\n", expr->set_var.name);
+    if (!var) error_loc(expr->loc, "variable '%s' does not exist\n", expr->set_var.name);
     if (expr->kind == EXPR_SET_VAR && expr->set_var.expr)
         _analyze_expr(anal, expr->set_var.expr);
 }
@@ -97,7 +97,7 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         _analyze_set_var(anal, expr);
         break;
     case EXPR_CALL_FUNC:
-        _analyze_call_func(anal, expr->call_func);
+        _analyze_call_func(anal, expr);
         break;
     case EXPR_DEFINE_FUNC: {
         anal->func = get_function(anal, expr->define_func.name);
@@ -112,7 +112,7 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         _analyze_expr(anal, expr->binary.left);
         _analyze_expr(anal, expr->binary.right);
         break;
-    default: ERROR("unexpected expression\n");
+    default: error_loc(expr->loc, "unexpected expression\n");
     }
 }
 
@@ -123,7 +123,7 @@ void analyze(struct analyzer *anal, struct expr_block ast)
     // first pass, declare all top-level functions and whatnot
     for (int i = 0; i < ast.size; ++i) {
         if (ast.body[i]->kind == EXPR_DEFINE_FUNC)
-            _define_function(anal, ast.body[i]->define_func);
+            _define_function(anal, ast.body[i]);
     }
 
     // second pass, actually analyze inside the functions

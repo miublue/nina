@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lexer.h"
@@ -27,10 +29,14 @@ static void _append_token(struct tokenizer *tok, struct token token)
 
 static void _skip_space(struct tokenizer *tok)
 {
-    while (BOUND(tok) && isspace(CUR(tok))) INC(tok, 1);
+    while (BOUND(tok) && isspace(CUR(tok))) {
+        if (CUR(tok) == '\n') ++tok->loc.line;
+        INC(tok, 1);
+    }
     if (BOUND(tok) && CUR(tok) == '#') {
         if (SEE(tok, 1) == '[') {
             while (BOUND(tok)) {
+                if (CUR(tok) == '\n') ++tok->loc.line;
                 INC(tok, 1);
                 if (CUR(tok) == ']' && SEE(tok, 1) == '#') {
                     INC(tok, 2);
@@ -65,14 +71,15 @@ static int _is_operator(int sz, char *ptr)
 static struct token _next_token(struct tokenizer *tok)
 {
     _skip_space(tok);
-    struct token tk = { .kind = TK_EOF, .data = &CUR(tok) };
+    struct token tk = { .loc = tok->loc, .kind = TK_EOF, .data = &CUR(tok) };
     int size = 0;
     if (!BOUND(tok)) return tk;
     if (strchr("\"\'", CUR(tok))) {
-        const char match = CUR(tok);
+        char match = CUR(tok), is_closed = 0;
         tk.kind = TK_STRING;
         // XXX: character escaping
-        do ++size, INC(tok, 1); while (CUR(tok) != match);
+        do ++size, INC(tok, 1); while (CUR(tok) != match && (is_closed = (BOUND(tok) && CUR(tok) != '\n')));
+        if (!is_closed) error_loc(tk.loc, "unclosed string\n");
         ++size, INC(tok, 1);
         goto ret;
     }
@@ -105,18 +112,23 @@ void tokenize(struct tokenizer *tok)
     }
 }
 
-const char *readable_token_kind(int kind)
+const char *readable_token_kind(char kind)
 {
-    static const char *HUMAN_READABLE_TOKEN_KIND[] = {
-        "<EOF>", "number", "string", "identifier",
-        "extern", "do", "end",
-        ",", ".", ";", "+", "-", "*", "/", "%", "&", "|", "^", "(", ")", "[", "]",
-        "=", "!", "<", ">", "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
-    };
-
-    return HUMAN_READABLE_TOKEN_KIND[kind];
+    static const char *HUMAN_READABLE_TOKEN_KIND[] = { "<EOF>", "number", "string", "identifier" };
+    if (kind >= TK_EXTERN && kind <= TK_END) return KEYWORDS[kind-TK_EXTERN];
+    if (kind >= TK_COMMA && kind <= TK_SHR) return OPERATORS[kind-TK_COMMA];
+    return HUMAN_READABLE_TOKEN_KIND[(int)kind];
 }
 
+void error_loc(struct location loc, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "%s:%d: error: ", loc.file, loc.line);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    exit(1);
+}
 
 #undef BOUND
 #undef CUR
