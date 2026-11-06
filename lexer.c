@@ -6,7 +6,7 @@
 #include "lexer.h"
 
 static const char *KEYWORDS[] = {
-    "extern", "if", "else", "do", "end",
+    "extern", "if", "else", "while", "break", "continue", "return", "do", "end",
 };
 
 static const char *OPERATORS[] = {

@@ -28,6 +28,15 @@ main() = do
         writeln(val)
     end
 
+    # loop from 0 to 9, skip 3, break on 7
+    i = 0
+    while i < 10
+        i = i + 1
+        if i == 3 continue end
+        if i == 7 break end
+        writeln(i)
+    end
+
     0
 end
 

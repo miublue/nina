@@ -10,10 +10,13 @@ enum {
     EXPR_CALL_FUNC,
     EXPR_SET_VAR,
     EXPR_GET_VAR,
+    /* XXX: unary operations */
     EXPR_BINARY,
     EXPR_BLOCK,       /* every expression under block is actually a statement */
     EXPR_DEFINE_FUNC,
     EXPR_IFELSE,
+    EXPR_WHILE,
+    EXPR_RETURN,
 };
 
 struct func_arg {
@@ -52,6 +55,12 @@ struct expr_ifelse {
     struct expr *cond, *body, *elze;
 };
 
+enum { RET_BREAK, RET_CONTINUE, RET_RETURN };
+struct expr_return {
+    int ret_type;
+    struct expr *expr;
+};
+
 struct expr {
     struct location loc;
     int kind;
@@ -63,6 +72,7 @@ struct expr {
         struct expr_set_var set_var;
         struct expr_binary binary;
         struct expr_ifelse ifelse;
+        struct expr_return ret;
     };
 };
 

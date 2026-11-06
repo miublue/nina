@@ -94,15 +94,26 @@ static void _generate_binary(struct codegen *gen, struct expr_binary binary)
     EMIT(")");
 }
 
-static void _generate_ifelse(struct codegen *gen, struct expr_ifelse ifelse)
+static void _generate_ifelse(struct codegen *gen, struct expr_ifelse ifelse, int is_while)
 {
-    EMIT("if (__nina_truthy(");
+    EMIT("%s (__nina_truthy(", is_while? "while" : "if");
     _generate_expr(gen, ifelse.cond);
     EMIT(").i == __NINA_TRUE)");
     _generate_expr(gen, ifelse.body);
-    if (ifelse.elze) {
+    if (ifelse.elze && !is_while) {
         EMIT("else ");
         _generate_expr(gen, ifelse.elze);
+    }
+}
+
+static void _generate_return(struct codegen *gen, struct expr_return ret)
+{
+    const char *rets[] = { "break", "continue", "return" };
+    EMIT("%s", rets[ret.ret_type]);
+    if (ret.ret_type == RET_RETURN) {
+        EMIT(" ");
+        if (ret.expr) _generate_expr(gen, ret.expr);
+        else EMIT("__NINA_FROM_INTEGER(0)");
     }
 }
 
@@ -136,7 +147,13 @@ static void _generate_expr(struct codegen *gen, struct expr *expr)
         _generate_binary(gen, expr->binary);
         break;
     case EXPR_IFELSE:
-        _generate_ifelse(gen, expr->ifelse);
+        _generate_ifelse(gen, expr->ifelse, 0);
+        break;
+    case EXPR_WHILE:
+        _generate_ifelse(gen, expr->ifelse, 1);
+        break;
+    case EXPR_RETURN:
+        _generate_return(gen, expr->ret);
         break;
     default: ERROR("_generate_expr: unexpected statement, must be a bug in the analyzer\n");
     }

@@ -117,6 +117,13 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         _analyze_expr(anal, expr->ifelse.body);
         if (expr->ifelse.elze) _analyze_expr(anal, expr->ifelse.elze);
         break;
+    case EXPR_WHILE:
+        _analyze_expr(anal, expr->ifelse.cond);
+        _analyze_expr(anal, expr->ifelse.body);
+        break;
+    case EXPR_RETURN:
+        if (expr->ret.expr) _analyze_expr(anal, expr->ret.expr);
+        break;
     default: error_loc(expr->loc, "unexpected expression\n");
     }
 }

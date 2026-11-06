@@ -89,7 +89,7 @@ static struct expr *_parse_literal(struct parser *par)
     return expr;
 }
 
-enum { BLOCK_BLOCK = 0, BLOCK_IF = 1, BLOCK_ELSE = 2 };
+enum { BLOCK_BLOCK, BLOCK_IF, BLOCK_ELSE, BLOCK_WHILE };
 static struct expr *_parse_block(struct parser *par, int block_type)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_BLOCK);
@@ -115,16 +115,25 @@ static struct expr *_parse_ifelse(struct parser *par)
         if (TOK(par).kind == TK_IF) expr->ifelse.elze = _parse_ifelse(par);
         else expr->ifelse.elze = _parse_block(par, BLOCK_ELSE);
     }
+    return expr;
+}
 
+static struct expr *_parse_while(struct parser *par)
+{
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_WHILE);
+    _expect_kind(par, TK_WHILE, 1);
+    expr->ifelse.cond = _parse_expression(par);
+    expr->ifelse.body = _parse_block(par, BLOCK_WHILE);
+    return expr;
+}
 
-    /* const int is_block = TOK(par).kind == TK_DO; */
-    /* expr->ifelse.body = is_block? _parse_block(par, 1) : _parse_statement(par); */
-    /* if (BOUND(par) && TOK(par).kind == TK_ELSE) { */
-    /*     INC(par, 1); */
-    /*     if (TOK(par).kind == TK_IF) expr->ifelse.elze = _parse_ifelse(par); */
-    /*     else if (is_block) INC(par, -1), expr->ifelse.elze = _parse_block(par, 1); */
-    /*     else expr->ifelse.elze = _parse_statement(par); */
-    /* } */
+static struct expr *_parse_return(struct parser *par, int ret_type)
+{
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_RETURN);
+    INC(par, 1);
+    expr->ret.ret_type = ret_type;
+    if (ret_type == RET_RETURN && TOK(par).loc.line == expr->loc.line && TOK(par).kind != TK_END)
+        expr->ret.expr = _parse_expression(par);
     return expr;
 }
 
@@ -261,6 +270,9 @@ static struct expr *_parse_statement(struct parser *par)
     switch (TOK(par).kind) {
     case TK_DO: expr = _parse_block(par, BLOCK_BLOCK); break;
     case TK_IF: expr = _parse_ifelse(par); break;
+    case TK_WHILE: expr = _parse_while(par); break;
+    case TK_BREAK: case TK_CONTINUE: case TK_RETURN:
+        expr = _parse_return(par, TOK(par).kind-TK_BREAK); break;
     default: expr = _parse_expression(par); break;
     }
     return expr;
