@@ -6,7 +6,8 @@
 #include "lexer.h"
 
 static const char *KEYWORDS[] = {
-    "extern", "if", "else", "while", "break", "continue", "return", "do", "end",
+    "extern", "import", "if", "else", "while", "break", "continue", "return",
+    "do", "end",
 };
 
 static const char *OPERATORS[] = {
@@ -111,6 +112,19 @@ void tokenize(struct tokenizer *tok)
         _append_token(tok, token);
         if (token.kind == TK_EOF) break;
     }
+}
+
+char *read_file(const char *path)
+{
+    FILE *file = fopen(path, "r");
+    if (!file) return NULL;
+    fseek(file, 0, SEEK_END);
+    const int size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    char *text = malloc(size+1);
+    fread(text, 1, size, file);
+    fclose(file);
+    return text;
 }
 
 const char *readable_token_kind(char kind)

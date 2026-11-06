@@ -209,7 +209,7 @@ void generate(struct codegen *gen)
     if (!(out = fopen(gen->out_path, "w+")))
         ERROR("could not open '%s' for writing\n", gen->out_path);
 
-    EMIT("#include \"nina_runtime.h\"\n");
+    EMIT("#include \"std/nina_runtime.h\"\n");
     for (int i = 0; i < gen->ast.size; ++i)
         _generate_toplevel(gen, gen->ast.body[i]);
 

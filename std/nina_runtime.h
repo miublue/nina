@@ -88,6 +88,22 @@ __nina_value length(__nina_value val) {
     }
 }
 
+__nina_value append(__nina_value array, __nina_value va_args) {
+    assert(__NINA_TYPE(array) == __NINA_TYPE_ARRAY);
+    assert(__NINA_TYPE(va_args) == __NINA_TYPE_ARRAY);
+    __nina_array *arr = __NINA_TO_ARRAY(array), *args = __NINA_TO_ARRAY(va_args);
+    if (arr->len+args->len >= arr->cap) arr->buf = realloc(arr->buf, (arr->cap += args->cap) * sizeof(__nina_value));
+    for (uint32_t i = 0; i < args->len; ++i) arr->buf[arr->len++] = args->buf[i];
+    return array;
+}
+
+__nina_value pop(__nina_value array) {
+    assert(__NINA_TYPE(array) == __NINA_TYPE_ARRAY);
+    __nina_array *arr = __NINA_TO_ARRAY(array);
+    assert(arr->len > 0);
+    return arr->buf[--arr->len];
+}
+
 __nina_value __nina_make_array(uint32_t cap, ...) {
     __nina_value *arr = malloc(sizeof(*arr) * cap);
     va_list ap;

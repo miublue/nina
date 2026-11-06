@@ -1,15 +1,4 @@
-extern write(_)
-extern length(val)
-
-writeln(_) = do
-    len = length(_va_list)
-    i = 0
-    while i < len
-        write(_va_list[i])
-        i = i + 1
-    end
-    write('\n')
-end
+import std.io, std.array
 
 greet(name) = writeln('Hello, ', name, '!')
 
@@ -18,8 +7,12 @@ main() = do
     greet(name)
 
     array = [69, 0, "string", ["foo", "bar"]]
+    append(array, "message")
     writeln(array[1] = 420)
     writeln(array)
+    pop(array)
+    other = pop(array)
+    writeln(other[0], other[1])
 
     NICE0 = 3 + 33 * 2
     NICE1 = 4000 / 10 + 40-20

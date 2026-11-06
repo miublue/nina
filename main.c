@@ -6,19 +6,7 @@
 #include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
-
-char *read_file(const char *path)
-{
-    FILE *file = fopen(path, "r");
-    if (!file) return NULL;
-    fseek(file, 0, SEEK_END);
-    const int size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char *text = malloc(size+1);
-    fread(text, 1, size, file);
-    fclose(file);
-    return text;
-}
+#include "module.h"
 
 static void _usage(const char *prg, int err)
 {
@@ -45,6 +33,10 @@ int main(int argc, char **argv)
     par.tokenizer.loc = (struct location) { .file = input_file, .line = 1 };
     if (!(par.tokenizer.text = read_file(input_file))) ERROR("failed to read file '%s'\n", input_file);
 
+    add_include_path("./");
+    add_include_path("/usr/lib/nina/");
+    add_include_path("/usr/local/lib/nina/");
+
     par.tokenizer.text_size = strlen(par.tokenizer.text);
     tokenize(&par.tokenizer);
 
@@ -60,7 +52,7 @@ int main(int argc, char **argv)
     };
 
     generate(&gen);
-    snprintf(cmd, sizeof(cmd), "${CC:-tcc} %s -o %s -lc -lgc", gen_file, output_file);
+    snprintf(cmd, sizeof(cmd), "${NINA_CC:-cc} %s -o %s -lc -lgc -I/usr/lib/nina -I/usr/local/lib/nina", gen_file, output_file);
     system(cmd);
     if (!keep_temp) unlink(gen_file);
     return 0;

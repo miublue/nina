@@ -3,6 +3,7 @@
 #include <string.h>
 #include "parser.h"
 #include "lexer.h"
+#include "module.h"
 
 #define BOUND(P) (CUR(P) < (P)->tokenizer.num_tokens)
 #define CUR(P) ((P)->tokenizer.cur)
@@ -47,7 +48,7 @@ static struct func_arg _parse_func_arg(struct parser *par)
 static struct expr *_parse_define_func(struct parser *par, int is_extern)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_DEFINE_FUNC);
-    if (is_extern) INC(par, 1);
+    if (is_extern) _expect_kind(par, TK_EXTERN, 1);
     expr->define_func.name = _expect_kind(par, TK_IDENT, 1).data;
     expr->define_func.is_extern = is_extern, expr->define_func.num_args = 0;
     do {
@@ -312,15 +313,47 @@ static struct expr *_parse_statement(struct parser *par)
     return expr;
 }
 
+static void _parse_import_module(struct parser *par)
+{
+    const struct location loc = TOK(par).loc;
+    do {
+        char path[4096] = {0}, lookup_path[4097] = {0};
+        do {
+            INC(par, 1);
+            if (strlen(path)) strcat(path, "/");
+            strcat(path, TOK(par).data);
+            INC(par, 1);
+        } while(TOK(par).kind == TK_DOT);
+        strcat(path, ".ni");
+        struct parser p = {0};
+        p.tokenizer.loc = (struct location) { .file = path, .line = 1 };
+
+        for (int i = 0; i < module_paths.num_include_paths; ++i) {
+            sprintf(lookup_path, "%s/%s", module_paths.include_paths[i], path);
+            if ((p.tokenizer.text = read_file(lookup_path))) break;
+        }
+
+        if (!p.tokenizer.text) error_loc(loc, "could not import module '%s'\n", path);
+        p.tokenizer.text_size = strlen(p.tokenizer.text);
+        tokenize(&p.tokenizer);
+        parse(&p);
+        for (int i = 0; i < p.ast.size; ++i)
+            _append_expr(&par->ast, p.ast.body[i]);
+    } while (TOK(par).kind == TK_COMMA);
+}
+
 static struct expr *_parse_toplevel(struct parser *par)
 {
     struct expr *expr = NULL;
     if (TOK(par).kind == TK_EOF) return expr;
+    while (TOK(par).kind == TK_IMPORT) _parse_import_module(par);
     switch (TOK(par).kind) {
     case TK_IDENT: case TK_EXTERN:
         expr = _parse_define_func(par, TOK(par).kind == TK_EXTERN);
         break;
-    default: error_loc(TOK(par).loc, "unexpected '%s'\n", TOK(par).data);
+    default:
+        error_loc(TOK(par).loc, "unexpected '%s'\n", TOK(par).data);
+        break;
     }
     return expr;
 }
@@ -338,5 +371,5 @@ void parse(struct parser *par)
 
 #undef BOUND
 #undef CUR
-#undef TOk
 #undef INC
+#undef TOk
