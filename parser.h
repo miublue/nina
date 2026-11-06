@@ -13,6 +13,7 @@ enum {
     EXPR_DEFINE_FUNC,
     EXPR_SET_VAR,
     EXPR_GET_VAR,
+    EXPR_BINARY,
     EXPR_BLOCK,
 };
 
@@ -43,6 +44,11 @@ struct expr_set_var {
     struct expr *expr;
 };
 
+struct expr_binary {
+    int op;
+    struct expr *left, *right;
+};
+
 struct expr {
     int kind;
     union {
@@ -51,6 +57,7 @@ struct expr {
         struct expr_define_func define_func;
         struct expr_block block;
         struct expr_set_var set_var;
+        struct expr_binary binary;
     };
 };
 

@@ -10,6 +10,28 @@ static FILE *out;
 
 #define EMIT(...) fprintf(out, __VA_ARGS__)
 
+
+static const char *binary_operators[] = {
+    [TK_ADD]  = "__NINA_BINOP_ADD",
+    [TK_SUB]  = "__NINA_BINOP_SUB",
+    [TK_MUL]  = "__NINA_BINOP_MUL",
+    [TK_DIV]  = "__NINA_BINOP_DIV",
+    [TK_MOD]  = "__NINA_BINOP_MOD",
+    [TK_LT]   = "__NINA_BINOP_LT",
+    [TK_GT]   = "__NINA_BINOP_GT",
+    [TK_LEQ]  = "__NINA_BINOP_LE",
+    [TK_GEQ]  = "__NINA_BINOP_GE",
+    [TK_EQEQ] = "__NINA_BINOP_EQ",
+    [TK_NEQ]  = "__NINA_BINOP_NE",
+    [TK_AND]  = "__NINA_BINOP_AND",
+    [TK_OR]   = "__NINA_BINOP_OR",
+    [TK_XOR]  = "__NINA_BINOP_XOR",
+    [TK_SHL]  = "__NINA_BINOP_SHL",
+    [TK_SHR]  = "__NINA_BINOP_SHR",
+    [TK_BAND] = "__NINA_BINOP_BAND",
+    [TK_BOR]  = "__NINA_BINOP_BOR",
+};
+
 static void _generate_expr(struct codegen *gen, struct expr *expr);
 
 static int _is_variable_arg(struct function *func, char *varname)
@@ -62,6 +84,15 @@ static void _generate_call_func(struct codegen *gen, struct expr_call_func func)
     EMIT(")");
 }
 
+static void _generate_binary(struct codegen *gen, struct expr_binary binary)
+{
+    EMIT("__nina_binary(%s, ", binary_operators[binary.op]);
+    _generate_expr(gen, binary.left);
+    EMIT(", ");
+    _generate_expr(gen, binary.right);
+    EMIT(")");
+}
+
 static void _generate_expr(struct codegen *gen, struct expr *expr)
 {
     switch (expr->kind) {
@@ -86,6 +117,9 @@ static void _generate_expr(struct codegen *gen, struct expr *expr)
             EMIT(";\n");
         }
         EMIT("}\n");
+        break;
+    case EXPR_BINARY:
+        _generate_binary(gen, expr->binary);
         break;
     default: ERROR("_generate_expr: unexpected statement, must be a bug in the analyzer\n");
     }

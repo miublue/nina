@@ -9,6 +9,7 @@
 #define TOK(P) ((P)->tokenizer.tokens[CUR(P)])
 #define INC(P, N) (CUR(P) += (N))
 
+static struct expr *_parse_statement(struct parser *par);
 static struct expr *_parse_expression(struct parser *par);
 static struct expr *_parse_toplevel(struct parser *par);
 
@@ -55,9 +56,9 @@ static struct expr *_parse_define_func(struct parser *par, int is_extern)
         expr->define_func.args[expr->define_func.num_args++] = _parse_func_arg(par);
     } while (TOK(par).kind == TK_COMMA);
     _expect_kind(par, TK_RPAREN, 1);
-    if (TOK(par).kind == TK_EQUALS) {
+    if (TOK(par).kind == TK_EQ) {
         INC(par, 1);
-        expr->define_func.body = _parse_expression(par);
+        expr->define_func.body = _parse_statement(par);
     } else {
         expr->define_func.body = NULL;
     }
@@ -93,7 +94,7 @@ static struct expr *_parse_block(struct parser *par)
     struct expr *expr = _alloc_expr(EXPR_BLOCK);
     _expect_kind(par, TK_DO, 1);
     while (BOUND(par) && TOK(par).kind != TK_END) {
-        _append_expr(&expr->block, _parse_expression(par));
+        _append_expr(&expr->block, _parse_statement(par));
     }
     _expect_kind(par, TK_END, 1);
     return expr;
@@ -103,7 +104,7 @@ static struct expr *_parse_variable(struct parser *par)
 {
     char *name = _expect_kind(par, TK_IDENT, 1).data;
     if (TOK(par).kind == TK_LPAREN) return _parse_call_func(par, name);
-    const int is_assign = TOK(par).kind == TK_EQUALS;
+    const int is_assign = TOK(par).kind == TK_EQ;
     struct expr *expr = _alloc_expr(is_assign? EXPR_SET_VAR : EXPR_GET_VAR);
     expr->set_var.name = name, expr->set_var.expr = NULL;
     if (is_assign) {
@@ -113,7 +114,7 @@ static struct expr *_parse_variable(struct parser *par)
     return expr;
 }
 
-static struct expr *_parse_expression(struct parser *par)
+static struct expr *_parse_term(struct parser *par)
 {
     struct expr *expr = NULL;
     if (TOK(par).kind == TK_EOF) return expr;
@@ -124,11 +125,112 @@ static struct expr *_parse_expression(struct parser *par)
     case TK_IDENT:
         expr = _parse_variable(par);
         break;
-    case TK_DO:
-        expr = _parse_block(par);
+    case TK_LPAREN:
+        INC(par, 1);
+        expr = _parse_expression(par);
+        _expect_kind(par, TK_RPAREN, 1);
         break;
     default: ERROR("unexpected '%s'\n", TOK(par).data);
     }
+    return expr;
+}
+
+static int _is_token_type(const int *types, const int len, int type)
+{
+    for (int i = 0; i < len; ++i)
+        if (type == types[i]) return 1;
+    return 0;
+}
+
+static struct expr *_parse_bitshifts(struct parser *par)
+{
+    const int toks[] = { TK_SHL, TK_SHR };
+    struct expr *left = _parse_term(par);
+    while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
+        const int op = TOK(par).kind;
+        INC(par, 1);
+        struct expr *expr = _alloc_expr(EXPR_BINARY);
+        expr->binary.op = op, expr->binary.left = left, expr->binary.right = _parse_term(par);
+        left = expr;
+    }
+    return left;
+}
+
+static struct expr *_parse_andor(struct parser *par)
+{
+    const int toks[] = { TK_AND, TK_OR, TK_XOR };
+    struct expr *left = _parse_bitshifts(par);
+    while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
+        const int op = TOK(par).kind;
+        INC(par, 1);
+        struct expr *expr = _alloc_expr(EXPR_BINARY);
+        expr->binary.op = op, expr->binary.left = left, expr->binary.right = _parse_bitshifts(par);
+        left = expr;
+    }
+    return left;
+}
+
+static struct expr *_parse_muldiv(struct parser *par)
+{
+    const int toks[] = { TK_MUL, TK_DIV, TK_MOD };
+    struct expr *left = _parse_andor(par);
+    while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
+        const int op = TOK(par).kind;
+        INC(par, 1);
+        struct expr *expr = _alloc_expr(EXPR_BINARY);
+        expr->binary.op = op, expr->binary.left = left, expr->binary.right = _parse_andor(par);
+        left = expr;
+    }
+    return left;
+}
+
+static struct expr *_parse_addsub(struct parser *par)
+{
+    const int toks[] = { TK_ADD, TK_SUB };
+    struct expr *left = _parse_muldiv(par);
+    while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
+        const int op = TOK(par).kind;
+        INC(par, 1);
+        struct expr *expr = _alloc_expr(EXPR_BINARY);
+        expr->binary.op = op, expr->binary.left = left, expr->binary.right = _parse_muldiv(par);
+        left = expr;
+    }
+    return left;
+}
+
+static struct expr *_parse_comparison(struct parser *par)
+{
+    const int toks[] = { TK_EQEQ, TK_NEQ, TK_LT, TK_GT, TK_LEQ, TK_GEQ };
+    struct expr *left = _parse_addsub(par);
+    while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
+        const int op = TOK(par).kind;
+        INC(par, 1);
+        struct expr *expr = _alloc_expr(EXPR_BINARY);
+        expr->binary.op = op, expr->binary.left = left, expr->binary.right = _parse_addsub(par);
+        left = expr;
+    }
+    return left;
+}
+
+static struct expr *_parse_expression(struct parser *par)
+{
+    const int toks[] = { TK_BAND, TK_BOR };
+    struct expr *left = _parse_comparison(par);
+    while (_is_token_type(toks, (int)(sizeof(toks)/sizeof(toks[0])), TOK(par).kind)) {
+        const int op = TOK(par).kind;
+        INC(par, 1);
+        struct expr *expr = _alloc_expr(EXPR_BINARY);
+        expr->binary.op = op, expr->binary.left = left, expr->binary.right = _parse_comparison(par);
+        left = expr;
+    }
+    return left;
+}
+
+static struct expr *_parse_statement(struct parser *par)
+{
+    struct expr *expr = NULL;
+    if (TOK(par).kind == TK_DO) expr = _parse_block(par);
+    else expr = _parse_expression(par);
     return expr;
 }
 

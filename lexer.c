@@ -7,8 +7,10 @@ static const char *KEYWORDS[] = {
     "extern", "do", "end",
 };
 
-#define CHAR_OPERATORS "=,;()"
-// XXX: multi-character operators (eg. == != >>)
+static const char *OPERATORS[] = {
+    ",", ".", ";", "+", "-", "*", "/", "%", "&", "|", "^", "(", ")", "[", "]",
+    "=", "!", "<", ">", "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
+};
 
 static void _append_token(struct tokenizer *tok, struct token token)
 {
@@ -20,13 +22,24 @@ static void _append_token(struct tokenizer *tok, struct token token)
 
 #define BOUND(T) ((T)->cur < (T)->text_size)
 #define CUR(T) ((T)->text[(T)->cur])
+#define SEE(T, N) ((T)->text[(T)->cur + (N)])
 #define INC(T, N) ((T)->cur += (N))
 
 static void _skip_space(struct tokenizer *tok)
 {
     while (BOUND(tok) && isspace(CUR(tok))) INC(tok, 1);
     if (BOUND(tok) && CUR(tok) == '#') {
-        while (BOUND(tok) && CUR(tok) != '\n') INC(tok, 1);
+        if (SEE(tok, 1) == '[') {
+            while (BOUND(tok)) {
+                INC(tok, 1);
+                if (CUR(tok) == ']' && SEE(tok, 1) == '#') {
+                    INC(tok, 2);
+                    break;
+                }
+            }
+        } else {
+            while (BOUND(tok) && CUR(tok) != '\n') INC(tok, 1);
+        }
         _skip_space(tok);
     }
 }
@@ -40,16 +53,26 @@ static int _is_keyword(int sz, char *ptr)
     return -1;
 }
 
+static int _is_operator(int sz, char *ptr)
+{
+    for (int i = 0; i < (int)(sizeof(OPERATORS)/sizeof(OPERATORS[0])); ++i) {
+        if ((int)strlen(OPERATORS[i]) == sz && !strncmp(ptr, OPERATORS[i], sz))
+            return i;
+    }
+    return -1;
+}
+
 static struct token _next_token(struct tokenizer *tok)
 {
     _skip_space(tok);
     struct token tk = { .kind = TK_EOF, .data = &CUR(tok) };
     int size = 0;
     if (!BOUND(tok)) return tk;
-    if (CUR(tok) == '\"') {
+    if (strchr("\"\'", CUR(tok))) {
+        const char match = CUR(tok);
         tk.kind = TK_STRING;
         // XXX: character escaping
-        do ++size, INC(tok, 1); while (CUR(tok) != '\"');
+        do ++size, INC(tok, 1); while (CUR(tok) != match);
         ++size, INC(tok, 1);
         goto ret;
     }
@@ -58,16 +81,14 @@ static struct token _next_token(struct tokenizer *tok)
         do ++size, INC(tok, 1); while (isdigit(CUR(tok)));
         goto ret;
     }
-    if (strchr(CHAR_OPERATORS, CUR(tok))) {
-        int idx;
-        for (idx = 0; idx < (int)strlen(CHAR_OPERATORS); ++idx) {
-            if (CUR(tok) == CHAR_OPERATORS[idx]) break;
-        }
-        tk.kind = TK_EQUALS+idx;
-        ++size, INC(tok, 1);
+    int idx = _is_operator(2, tk.data);
+    if (idx == -1) idx = _is_operator(1, tk.data);
+    if (idx != -1) {
+        tk.kind = TK_COMMA+idx, size = idx >= TK_EQEQ? 2 : 1;
+        INC(tok, size);
         goto ret;
     }
-    while (!isspace(CUR(tok)) && !strchr(CHAR_OPERATORS"\"#", CUR(tok)))
+    while (!isspace(CUR(tok)) && !strchr("\"\'#", CUR(tok)) && _is_operator(1, &CUR(tok)) == -1)
         ++size, INC(tok, 1);
     tk.kind = TK_EXTERN+_is_keyword(size, tk.data);
 ret:
@@ -88,7 +109,9 @@ const char *readable_token_kind(int kind)
 {
     static const char *HUMAN_READABLE_TOKEN_KIND[] = {
         "<EOF>", "number", "string", "identifier",
-        "extern", "do", "end", "=", ",", ";", "(", ")",
+        "extern", "do", "end",
+        ",", ".", ";", "+", "-", "*", "/", "%", "&", "|", "^", "(", ")", "[", "]",
+        "=", "!", "<", ">", "==", "!=", "<=", ">=", "&&", "||", "<<", ">>",
     };
 
     return HUMAN_READABLE_TOKEN_KIND[kind];
@@ -97,4 +120,5 @@ const char *readable_token_kind(int kind)
 
 #undef BOUND
 #undef CUR
+#undef SEE
 #undef INC

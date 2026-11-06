@@ -108,6 +108,10 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
         for (int i = 0; i < expr->block.size; ++i)
             _analyze_expr(anal, expr->block.body[i]);
         break;
+    case EXPR_BINARY:
+        _analyze_expr(anal, expr->binary.left);
+        _analyze_expr(anal, expr->binary.right);
+        break;
     default: ERROR("unexpected expression\n");
     }
 }
