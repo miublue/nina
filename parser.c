@@ -13,6 +13,10 @@
 static struct expr *_parse_statement(struct parser *par);
 static struct expr *_parse_expression(struct parser *par);
 static struct expr *_parse_toplevel(struct parser *par);
+static struct expr *_parse_block(struct parser *par, int block_type);
+
+enum { BLOCK_DO, BLOCK_IF, BLOCK_ELSE, BLOCK_WHILE, BLOCK_FUN, BLOCK_CLASS };
+static const char *_block_type_str[] = { "do", "if", "else", "while", "fun", "class" };
 
 static struct expr *_alloc_expr(struct location loc, int kind)
 {
@@ -49,20 +53,17 @@ static struct expr *_parse_define_func(struct parser *par, int is_extern)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_DEFINE_FUNC);
     if (is_extern) _expect_kind(par, TK_EXTERN, 1);
+    _expect_kind(par, TK_FUN, 1);
     expr->define_func.name = _expect_kind(par, TK_IDENT, 1).data;
     expr->define_func.is_extern = is_extern, expr->define_func.num_args = 0;
+    expr->define_func.body = NULL;
     do {
         _expect_kind(par, expr->define_func.num_args? TK_COMMA : TK_LPAREN, 1);
         if (TOK(par).kind == TK_RPAREN) break;
         expr->define_func.args[expr->define_func.num_args++] = _parse_func_arg(par);
     } while (TOK(par).kind == TK_COMMA);
     _expect_kind(par, TK_RPAREN, 1);
-    if (TOK(par).kind == TK_EQ) {
-        INC(par, 1);
-        expr->define_func.body = _parse_statement(par);
-    } else {
-        expr->define_func.body = NULL;
-    }
+    expr->define_func.body = is_extern? NULL : _parse_block(par, BLOCK_FUN);
     return expr;
 }
 
@@ -103,13 +104,12 @@ static struct expr *_parse_literal(struct parser *par)
     return expr;
 }
 
-enum { BLOCK_BLOCK, BLOCK_IF, BLOCK_ELSE, BLOCK_WHILE };
 static struct expr *_parse_block(struct parser *par, int block_type)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_BLOCK);
-    if (block_type == BLOCK_BLOCK) _expect_kind(par, TK_DO, 1);
+    if (block_type == BLOCK_DO) _expect_kind(par, TK_DO, 1);
     while (BOUND(par) && TOK(par).kind != TK_END) {
-        if (TOK(par).kind == TK_EOF) error_loc(expr->loc, "missing 'end' for 'do' block\n");
+        if (TOK(par).kind == TK_EOF) error_loc(expr->loc, "missing 'end' for '%s' block\n", _block_type_str[block_type]);
         if (TOK(par).kind == TK_ELSE && block_type == BLOCK_IF) return expr;
         _append_expr(&expr->block, _parse_statement(par));
     }
@@ -303,7 +303,7 @@ static struct expr *_parse_statement(struct parser *par)
     struct expr *expr = NULL;
     if (TOK(par).kind == TK_EOF) return expr;
     switch (TOK(par).kind) {
-    case TK_DO: expr = _parse_block(par, BLOCK_BLOCK); break;
+    case TK_DO: expr = _parse_block(par, BLOCK_DO); break;
     case TK_IF: expr = _parse_ifelse(par); break;
     case TK_WHILE: expr = _parse_while(par); break;
     case TK_BREAK: case TK_CONTINUE: case TK_RETURN:
@@ -349,7 +349,7 @@ static struct expr *_parse_toplevel(struct parser *par)
     if (TOK(par).kind == TK_EOF) return expr;
     while (TOK(par).kind == TK_IMPORT) _parse_import_module(par);
     switch (TOK(par).kind) {
-    case TK_IDENT: case TK_EXTERN:
+    case TK_FUN: case TK_EXTERN:
         expr = _parse_define_func(par, TOK(par).kind == TK_EXTERN);
         break;
     default:

@@ -7,7 +7,7 @@
 
 static const char *KEYWORDS[] = {
     "extern", "import", "if", "else", "while", "break", "continue", "return",
-    "do", "end",
+    "fun", "class", "do", "end",
 };
 
 static const char *OPERATORS[] = {

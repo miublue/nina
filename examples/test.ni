@@ -1,8 +1,10 @@
 import std.array, std.io
 
-greet(name) = writeln('Hello, ', name, '!')
+fun greet(name)
+    writeln('Hello, ', name, '!')
+end
 
-main() = do
+fun main()
     name = "World"
     greet(name)
 
@@ -43,4 +45,3 @@ main() = do
 
     0
 end
-

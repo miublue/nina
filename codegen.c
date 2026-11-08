@@ -44,7 +44,7 @@ static int _is_variable_arg(struct function *func, char *varname)
 
 static void _generate_func(struct codegen *gen, struct expr_define_func func)
 {
-    char *name = strcmp(func.name, "main") == 0? "__nina_main" : func.name;
+    char *name = strcmp(func.name, "main") == 0? "__NINA_MAIN" : func.name;
     EMIT("%s__nina_value %s(", func.is_extern? "extern " : "", name);
     for (int i = 0; i < func.num_args; ++i) {
         if (i > 0) EMIT(", ");
@@ -83,7 +83,7 @@ static void _generate_call_func(struct codegen *gen, struct expr_call_func func)
     for (int i = 0; i < func.num_args; ++i) {
         if (i > 0) EMIT(", ");
         if (func_data->is_variadic && i < func_data->arity && !strcmp(func_data->args[i].name, "_")) {
-            EMIT("__nina_make_array(%d, ", func.num_args-i);
+            EMIT("__NINA_MAKE_ARRAY(%d, ", func.num_args-i);
         }
         _generate_expr(gen, func.args[i]);
     }
@@ -93,7 +93,7 @@ static void _generate_call_func(struct codegen *gen, struct expr_call_func func)
 
 static void _generate_binary(struct codegen *gen, struct expr_binary binary)
 {
-    EMIT("__nina_binary(%s, ", binary_operators[binary.op]);
+    EMIT("__NINA_BINARY(%s, ", binary_operators[binary.op]);
     _generate_expr(gen, binary.left);
     EMIT(", ");
     _generate_expr(gen, binary.right);
@@ -102,7 +102,7 @@ static void _generate_binary(struct codegen *gen, struct expr_binary binary)
 
 static void _generate_ifelse(struct codegen *gen, struct expr_ifelse cond, int is_while)
 {
-    EMIT("%s (__nina_truthy(", is_while? "while" : "if");
+    EMIT("%s (__NINA_TRUTHY(", is_while? "while" : "if");
     _generate_expr(gen, cond.cond);
     EMIT(").i == __NINA_TRUE)");
     _generate_expr(gen, cond.body);
@@ -114,7 +114,7 @@ static void _generate_ifelse(struct codegen *gen, struct expr_ifelse cond, int i
 
 static void _generate_array_index(struct codegen *gen, struct expr_array_index array)
 {
-    EMIT("__nina_%cet_array(", array.expr? 's' : 'g');
+    EMIT("__NINA_%cET_ARRAY(", array.expr? 'S' : 'G');
     _generate_expr(gen, array.array);
     EMIT(", ");
     _generate_expr(gen, array.index);
@@ -127,7 +127,7 @@ static void _generate_array_index(struct codegen *gen, struct expr_array_index a
 
 static void _generate_make_array(struct codegen *gen, struct expr_block array)
 {
-    EMIT("__nina_make_array(%d", array.size);
+    EMIT("__NINA_MAKE_ARRAY(%d", array.size);
     for (int i = 0; i < array.size; ++i) {
         EMIT(", ");
         _generate_expr(gen, array.body[i]);
@@ -213,7 +213,7 @@ void generate(struct codegen *gen)
     for (int i = 0; i < gen->ast.size; ++i)
         _generate_toplevel(gen, gen->ast.body[i]);
 
-    EMIT("int main(void) { __nina_value v=__nina_main(); return __NINA_TO_INTEGER(v); }\n");
+    EMIT("int main(void) { __nina_value v=__NINA_MAIN(); return __NINA_TO_INTEGER(v); }\n");
     fclose(out);
 }
 

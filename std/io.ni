@@ -1,6 +1,6 @@
-extern write(_)
+extern fun write(_)
 
-writeln(_) = do
+fun writeln(_)
     len = length(_va_list)
     i = 0
     while i < len
