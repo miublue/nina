@@ -67,10 +67,23 @@ static struct expr *_parse_define_func(struct parser *par, int is_extern)
     return expr;
 }
 
+static struct expr *_parse_define_class(struct parser *par)
+{
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_DEFINE_CLASS);
+    _expect_kind(par, TK_CLASS, 1);
+    expr->define_class.name = _expect_kind(par, TK_IDENT, 1).data;
+    while (BOUND(par) && TOK(par).kind != TK_END) {
+        if (TOK(par).kind == TK_EOF) error_loc(expr->loc, "missing 'end' for '%s' block\n", _block_type_str[BLOCK_CLASS]);
+        _append_expr(&expr->define_class.methods, _parse_define_func(par, 0));
+    }
+    _expect_kind(par, TK_END, 1);
+    return expr;
+}
+
 static struct expr *_parse_call_func(struct parser *par, char *name)
 {
     struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_CALL_FUNC);
-    expr->call_func.name = name;
+    expr->call_func.name = name, expr->call_func.obj = NULL;
     do {
         _expect_kind(par, expr->call_func.num_args? TK_COMMA : TK_LPAREN, 1);
         if (TOK(par).kind == TK_RPAREN) break;
@@ -78,6 +91,21 @@ static struct expr *_parse_call_func(struct parser *par, char *name)
         expr->call_func.args[expr->call_func.num_args++] = arg;
     } while (TOK(par).kind == TK_COMMA);
     _expect_kind(par, TK_RPAREN, 1);
+    return expr;
+}
+
+static struct expr *_parse_field(struct parser *par, struct expr *obj)
+{
+    struct expr *expr = _alloc_expr(TOK(par).loc, EXPR_GET_FIELD);
+    _expect_kind(par, TK_DOT, 1);
+    expr->set_field.name = _expect_kind(par, TK_IDENT, 1).data;
+    if (TOK(par).kind == TK_LPAREN) {
+        expr = _parse_call_func(par, expr->set_field.name);
+        expr->kind = EXPR_CALL_METHOD, expr->call_func.obj = obj;
+    } else if (TOK(par).kind == TK_EQ) {
+        INC(par, 1), expr->kind = EXPR_SET_FIELD;
+        expr->set_field.expr = _parse_expression(par);
+    }
     return expr;
 }
 
@@ -203,7 +231,8 @@ static struct expr *_parse_term(struct parser *par)
 static struct expr *_parse_factor(struct parser *par)
 {
     struct expr *expr = _parse_term(par);
-    while (TOK(par).kind == TK_LSQUARE) expr = _parse_array_index(par, expr);
+    while (TOK(par).kind == TK_LSQUARE || TOK(par).kind == TK_DOT)
+        expr = TOK(par).kind == TK_DOT? _parse_field(par, expr) : _parse_array_index(par, expr);
     return expr;
 }
 
@@ -352,6 +381,9 @@ static struct expr *_parse_toplevel(struct parser *par)
     switch (TOK(par).kind) {
     case TK_FUN: case TK_EXTERN:
         expr = _parse_define_func(par, TOK(par).kind == TK_EXTERN);
+        break;
+    case TK_CLASS:
+        expr = _parse_define_class(par);
         break;
     default:
         error_loc(TOK(par).loc, "unexpected '%s'\n", TOK(par).data);

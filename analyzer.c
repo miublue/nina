@@ -44,6 +44,15 @@ struct func_arg *get_variable(struct function *func, char *name)
     return NULL;
 }
 
+struct class *get_class(struct analyzer *anal, char *name)
+{
+    for (int i = 0; i < anal->num_classes; ++i) {
+        if (!strcmp(anal->classes[i]->name, name))
+            return anal->classes[i];
+    }
+    return NULL;
+}
+
 static void _define_function(struct analyzer *anal, struct expr *expr)
 {
     struct function *prev = anal->func, *check = get_function(anal, expr->define_func.name);
@@ -112,11 +121,11 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
     case EXPR_CALL_FUNC:
         _analyze_call_func(anal, expr);
         break;
-    case EXPR_DEFINE_FUNC: {
+    case EXPR_DEFINE_FUNC:
         anal->func = get_function(anal, expr->define_func.name);
         if (expr->define_func.body)
             _analyze_expr(anal, expr->define_func.body);
-    } break;
+        break;
     case EXPR_BLOCK: case EXPR_MAKE_ARRAY:
         for (int i = 0; i < expr->block.size; ++i)
             _analyze_expr(anal, expr->block.body[i]);
@@ -137,13 +146,13 @@ static void _analyze_expr(struct analyzer *anal, struct expr *expr)
     case EXPR_RETURN:
         if (expr->ret.expr) _analyze_expr(anal, expr->ret.expr);
         break;
-    default: error_loc(expr->loc, "unexpected expression\n");
+    default: error_loc(expr->loc, "_analyze_expr: unexpected expression\n");
     }
 }
 
 void analyze(struct analyzer *anal, struct expr_block ast)
 {
-    anal->num_funcs = anal->max_funcs = 0;
+    anal->num_funcs = anal->max_funcs = anal->num_classes = anal->max_classes = 0;
     anal->func = NULL;
     // first pass, declare all top-level functions and whatnot
     for (int i = 0; i < ast.size; ++i) {

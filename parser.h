@@ -8,6 +8,9 @@
 enum {
     EXPR_LITERAL,
     EXPR_CALL_FUNC,
+    EXPR_CALL_METHOD,
+    EXPR_SET_FIELD,
+    EXPR_GET_FIELD,
     EXPR_SET_VAR,
     EXPR_GET_VAR,
     EXPR_MAKE_ARRAY,
@@ -17,6 +20,7 @@ enum {
     EXPR_BINARY,
     EXPR_BLOCK,       /* every expression under block is actually a statement */
     EXPR_DEFINE_FUNC,
+    EXPR_DEFINE_CLASS,
     EXPR_IFELSE,
     EXPR_WHILE,
     EXPR_RETURN,
@@ -34,7 +38,7 @@ struct expr_block {
 struct expr_call_func {
     char *name;
     int num_args;
-    struct expr *args[MAX_FUNC_ARGS];
+    struct expr *obj, *args[MAX_FUNC_ARGS];
 };
 
 struct expr_define_func {
@@ -42,6 +46,16 @@ struct expr_define_func {
     int num_args, is_extern;
     struct func_arg args[MAX_FUNC_ARGS];
     struct expr *body;
+};
+
+struct expr_define_class {
+    char *name;
+    struct expr_block methods;
+};
+
+struct expr_set_field {
+    char *name;
+    struct expr *obj, *expr;
 };
 
 struct expr_set_var {
@@ -75,6 +89,8 @@ struct expr {
         struct token literal;
         struct expr_call_func call_func;
         struct expr_define_func define_func;
+        struct expr_define_class define_class;
+        struct expr_set_field set_field;
         struct expr_block block;
         struct expr_set_var set_var;
         struct expr_binary binary;
