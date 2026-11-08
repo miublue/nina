@@ -107,6 +107,7 @@ ret:
 
 void tokenize(struct tokenizer *tok)
 {
+    tok->cur = 0;
     while (BOUND(tok)) {
         struct token token = _next_token(tok);
         _append_token(tok, token);

@@ -317,7 +317,7 @@ static void _parse_import_module(struct parser *par)
 {
     const struct location loc = TOK(par).loc;
     do {
-        char path[4096] = {0}, lookup_path[4097] = {0};
+        char path[4096] = {0}, lookup_path[4097] = {0}, real_path[4097];
         do {
             INC(par, 1);
             if (strlen(path)) strcat(path, "/");
@@ -330,11 +330,12 @@ static void _parse_import_module(struct parser *par)
 
         for (int i = 0; i < module_paths.num_include_paths; ++i) {
             sprintf(lookup_path, "%s/%s", module_paths.include_paths[i], path);
-            if ((p.tokenizer.text = read_file(lookup_path))) break;
+            if (!realpath(lookup_path, real_path)) continue;
+            if ((p.tokenizer.text = read_file(real_path))) break;
         }
 
-        if (has_file_been_imported(lookup_path)) continue;
-        add_imported_file(lookup_path);
+        if (has_file_been_imported(real_path)) continue;
+        add_imported_file(real_path);
         if (!p.tokenizer.text) error_loc(loc, "could not import module '%s'\n", path);
         p.tokenizer.text_size = strlen(p.tokenizer.text);
         tokenize(&p.tokenizer);

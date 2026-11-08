@@ -1,21 +1,6 @@
-import std.array, std.io
-
-fun greet(name)
-    writeln('Hello, ', name, '!')
-end
+import std.io
 
 fun main()
-    name = "World"
-    greet(name)
-
-    array = [69, 0, "string", ["foo", "bar"]]
-    append(array, "message")
-    writeln(array[1] = 420)
-    writeln(array)
-    pop(array)
-    other = pop(array)
-    writeln(other[0], other[1])
-
     NICE0 = 3 + 33 * 2
     NICE1 = 4000 / 10 + 40-20
     val = 80085
@@ -37,11 +22,5 @@ fun main()
         writeln(i)
     end
 
-    i = 0
-    while i < length(array)
-        writeln(array[i])
-        i = i + 1
-    end
-
-    0
+    return 0
 end

@@ -1,3 +1,4 @@
+import std.array
 extern fun write(_)
 
 fun writeln(_)

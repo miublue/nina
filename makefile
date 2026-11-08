@@ -10,11 +10,12 @@ ninac: ${OBJFILES}
 	${CC} -o $@ $^ ${CFLAGS}
 
 test: all
-	./ninac examples/test.ni -k -o test
-	./test
+	./ninac examples/hello.ni && ./a.out
+	./ninac examples/arrays.ni && ./a.out
+	./ninac examples/loops.ni && ./a.out
 
 clean:
-	rm -f ninac test __tmp_output.c *.o
+	rm -f ninac __tmp_output.c *.o *.out
 
 install: all
 	mkdir -p ${PREFIX}/bin ${PREFIX}/lib/nina
