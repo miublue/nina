@@ -15,7 +15,7 @@ test: all
 	./ninac examples/loops.ni && ./a.out
 
 clean:
-	rm -f ninac __tmp_output.c *.o *.out
+	rm -f ninac __tmp_output.c *.o src/*.o *.out
 
 install: all
 	mkdir -p ${PREFIX}/bin ${PREFIX}/lib/nina
