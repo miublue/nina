@@ -1,6 +1,6 @@
 CC = tcc
-CFLAGS = -Wall -Werror -Wextra
-SRCFILES = analyzer.c codegen.c lexer.c main.c module.c parser.c
+CFLAGS = -Wall -Werror -Wextra -Isrc
+SRCFILES = ${wildcard src/*.c}
 OBJFILES = ${SRCFILES:.c=.o}
 PREFIX = /usr/local
 
